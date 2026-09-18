@@ -51,9 +51,22 @@ class GeneticAlgorithm:
         #
         # Remember: Selection determines which traits get passed to next generation!
         
-        # Minimal version: just take top 50% of population
-        survival_count = max(1, len(fitness_scores) // 2)  # Top 50%
-        survivors = [gatherer for gatherer, fitness in fitness_scores[:survival_count]]
+       # Use the configured survival rate
+        survival_count = max(1, int(len(fitness_scores) * SURVIVAL_RATE))
+
+        # Always preserve the single best-performing gatherer
+        survivors = [fitness_scores[0][0]]
+
+        # Fill the remaining survivor spots using tournament selection
+        while len(survivors) < survival_count:
+            tournament_size = min(3, len(fitness_scores))
+            tournament = random.sample(fitness_scores, tournament_size)
+
+            winner = max(tournament, key=lambda item: item[1])[0]
+
+            if winner not in survivors:
+                survivors.append(winner)
+
         return survivors
     
     def crossover(self, parent1, parent2):
@@ -90,9 +103,19 @@ class GeneticAlgorithm:
         
         for gene_name in gatherer.genes:
             if random.random() < MUTATION_RATE:
-                # Minimal version: just flip a coin and randomize the gene completely
                 min_val, max_val = GENE_RANGES[gene_name]
-                gatherer.genes[gene_name] = random.uniform(min_val, max_val)
+
+                gene_range = max_val - min_val
+                mutation_amount = random.gauss(
+                    0,
+                    gene_range * MUTATION_STRENGTH / 2
+                )
+
+                new_value = gatherer.genes[gene_name] + mutation_amount
+
+                new_value = max(min_val, min(max_val, new_value))
+
+                gatherer.genes[gene_name] = new_value
     
     def create_next_generation(self, population):
         # Evaluate fitness
